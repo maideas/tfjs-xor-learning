@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TensorFlow JS XOR Learning</title>
+
+<head>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-vis@latest/dist/tfjs-vis.umd.min.js"></script>
+</head>
+<style>
+    body,
+    html {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-size: 16px;
+        font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
+    }
+
+    h1 {
+        text-align: center;
+        font-size: 32px;
+        font-family: serif;
+        margin: 20px 0 10px 20px;
+    }
+
+    #log {
+        height: calc(24*12px*1.25);
+        overflow-y: auto;
+        font-size: 12px;
+        font-family: 'Courier New', Courier, monospace;
+        line-height: 1.25em;
+    }
+
+    input {
+        margin: 8px 10px 0px 10px;
+    }
+
+    input[type="button"] {
+        display: block;
+        margin: 30px auto 0 auto;
+    }
+
+    #loss-plot {
+        margin: 20px;
+    }
+
+    .ctrl,
+    #log {
+        float: left;
+        margin: 20px;
+        padding: 20px;
+        border: 1px solid #ccc;
+    }
+
+    .ctrl {
+        width: 280px;
+    }
+
+    #log {
+        width: calc(100% - 450px);
+        margin-left: 0;
+        background: #f5f5f5;
+    }
+
+    b {
+        color: #04a;
+    }
+</style>
+
+<script>
+
+    // redirect console.log messages to #log element ...
+    const redirectedLog = (...message) => {
+        let logElem = document.getElementById('log')
+        let text = ''
+        message.forEach(msg => {
+            text += JSON.stringify(msg)
+                .replace(/{/g, '{<br>')
+                .replace(/}/g, '}<br>')
+                .replace(/}<br>,/g, '},')
+                .replace(/,"/g, ',<br>"')
+                .replace(/,/g, ', ')
+                .replace(/:/g, ' : ')
+                .replace(/\\n/g, '<br>')
+                .replace(/"/g, '')
+                .replace(/{/g, '<b>{</b>')
+                .replace(/}/g, '<b>}</b>')
+                .replace(/\[/g, '<b>[</b>')
+                .replace(/\]/g, '<b>]</b>')
+                .replace(/\bTensor\b/g, '<b>Tensor</b>')
+            text += ' '
+        })
+        logElem.innerHTML += text + '<br>'
+        // scroll to bottom of log ...
+        logElem.scrollTop = logElem.scrollHeight
+    }
+
+    window.console.log = redirectedLog
+
+    const run = () => {
+        const useRMSLoss = document.getElementById("useRMSLoss").checked
+        const useClasses = document.getElementById("useClasses").checked
+
+        const dataX = [[0, 0], [0, 1], [1, 0], [1, 1]]
+        const dataY = useClasses ?
+            [[1, 0], [0, 1], [0, 1], [1, 0]] :
+            [0, 1, 1, 0]
+
+        const trainX = tf.tensor2d(dataX, [dataX.length, dataX[0].length], 'float32')
+        const trainY = useClasses ?
+            tf.tensor2d(dataY, [dataY.length, dataY[0].length], 'int32') :
+            tf.tensor1d(dataY, 'int32')
+
+        // some simple validation data ...
+        const validX = tf.clone(trainX).mul(0.9).add(0.05)
+        const validY = tf.clone(trainY)
+
+        const model = tf.sequential();
+        model.add(tf.layers.dense({ inputShape: [2], units: 5, useBias: true, activation: 'tanh' }))
+        model.add(tf.layers.dense({ units: 5, useBias: true, activation: 'tanh' }))
+
+        if (useClasses) {
+            model.add(tf.layers.dense({ units: 2, useBias: true, activation: 'softmax' }))
+        } else {
+            if (useRMSLoss) {
+                model.add(tf.layers.dense({ units: 1, useBias: true, activation: 'linear' }))
+            } else {
+                model.add(tf.layers.dense({ units: 1, useBias: true, activation: 'sigmoid' }))
+            }
+        }
+
+        model.compile({
+            optimizer: tf.train.adam(learningRate = 0.01),
+            loss: useClasses ? 'categoricalCrossentropy' :
+                (useRMSLoss ? 'meanSquaredError' : 'binaryCrossentropy'),
+            metrics: ['accuracy']
+        })
+
+        const onBatchEnd = (n, logs) => {
+            console.log('onBatchEnd', n, logs)
+        }
+
+        const onEpochEnd = (n, logs) => {
+            console.log('onEpochEnd', n, logs)
+        }
+
+        model.fit(trainX, trainY, {
+            batchSize: 4,
+            epochs: 200,
+            shuffle: true,
+            validationData: [validX, validY],
+            callbacks: { /* onBatchEnd, */ onEpochEnd }
+        }).then(info => {
+            console.log("post-fit :", info)
+
+            console.log("training data input:")
+            trainX.print()
+            console.log("training data target:")
+            trainY.print()
+            console.log("training data predicted:")
+            model.predict(trainX).print()
+
+            console.log("validation data input:")
+            validX.print()
+            console.log("validation data target:")
+            validY.print()
+            console.log("validation data predicted:")
+            model.predict(validX).print()
+
+            let trainLoss = [];
+            let validLoss = [];
+            for (let n = 0; n < info.history.loss.length; n++) {
+                trainLoss.push({ x: n, y: info.history.loss[n] })
+                validLoss.push({ x: n, y: info.history.val_loss[n] })
+            }
+            tfvis.render.linechart(
+                document.getElementById('loss-plot'),
+                { values: [trainLoss, validLoss], series: ['train loss', 'validation loss'] },
+                { xLabel: 'Epochs', yLabel: 'Loss', zoomToFit: true, height: 300 }
+            );
+        })
+    }
+</script>
+
+<body>
+    <h1>TensorFlow XOR Learning</h1>
+
+    <div class="ctrl">
+        <input type="radio" id="useRMSLoss" name="variant" checked>
+        <label for="useRMSLoss">regression</label><br>
+        <input type="radio" id="useBinary" name="variant">
+        <label for="useBinary">binary classification</label><br>
+        <input type="radio" id="useClasses" name="variant">
+        <label for="useClasses">categorical classification</label><br>
+        <input type="button" value="run" onclick="run();">
+    </div>
+
+    <div id="log"></div>
+    <div id="loss-plot"></div>
+</body>
+
+</html>
