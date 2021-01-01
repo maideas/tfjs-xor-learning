@@ -105,9 +105,15 @@
         logElem.scrollTop = logElem.scrollHeight
     }
 
+    const clearLog = () => {
+        document.getElementById('log').innerHTML = ''
+    }
+
     window.console.log = redirectedLog
 
     const run = () => {
+        clearLog()
+
         const useRMSLoss = document.getElementById("useRMSLoss").checked
         const useClasses = document.getElementById("useClasses").checked
 
@@ -122,7 +128,7 @@
             tf.tensor1d(dataY, 'int32')
 
         // some simple validation data ...
-        const validX = tf.clone(trainX).mul(0.9).add(0.05)
+        const validX = tf.clone(trainX).add(tf.randomNormal(trainX.shape, 0, 0.1))
         const validY = tf.clone(trainY)
 
         const model = tf.sequential();
@@ -161,20 +167,20 @@
             validationData: [validX, validY],
             callbacks: { /* onBatchEnd, */ onEpochEnd }
         }).then(info => {
-            console.log("post-fit :", info)
+            console.log('post-fit :', info)
 
-            console.log("training data input:")
+            console.log('training data input:')
             trainX.print()
-            console.log("training data target:")
+            console.log('training data target:')
             trainY.print()
-            console.log("training data predicted:")
+            console.log('training data predicted:')
             model.predict(trainX).print()
 
-            console.log("validation data input:")
+            console.log('validation data input:')
             validX.print()
-            console.log("validation data target:")
+            console.log('validation data target:')
             validY.print()
-            console.log("validation data predicted:")
+            console.log('validation data predicted:')
             model.predict(validX).print()
 
             let trainLoss = [];
