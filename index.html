@@ -33,6 +33,11 @@
         line-height: 1.25em;
     }
 
+    .flex-row {
+        display: flex;
+        flex-direction: row;
+    }
+
     input {
         margin: 8px 10px 0px 10px;
     }
@@ -78,7 +83,6 @@
 </style>
 
 <script>
-
     // redirect console.log messages to #log element ...
     const redirectedLog = (...message) => {
         let logElem = document.getElementById('log')
@@ -111,8 +115,15 @@
 
     window.console.log = redirectedLog
 
-    const run = () => {
+    let stopRequest = false
+
+    const stopTraining = () => {
+        stopRequest = true
+    }
+
+    const runTraining = () => {
         document.getElementById("run").disabled = true
+        document.getElementById("stop").disabled = false
         document.getElementById("useRMSLoss").disabled = true
         document.getElementById("useBinary").disabled = true
         document.getElementById("useClasses").disabled = true
@@ -158,12 +169,21 @@
                 metrics: ['accuracy']
             })
 
+            const manageStopTraining = () => {
+                if (stopRequest) {
+                    model.stopTraining = true
+                    stopRequest = false
+                }
+            }
+
             const onBatchEnd = (n, logs) => {
                 console.log('onBatchEnd', n, logs)
+                manageStopTraining()
             }
 
             const onEpochEnd = (n, logs) => {
                 console.log('onEpochEnd', n, logs)
+                manageStopTraining()
             }
 
             model.fit(trainX, trainY, {
@@ -205,6 +225,7 @@
                 document.getElementById("useBinary").disabled = false
                 document.getElementById("useClasses").disabled = false
                 document.getElementById("run").disabled = false
+                document.getElementById("stop").disabled = true
             })
         }, 0)
     }
@@ -220,7 +241,10 @@
         <label for="useBinary">binary classification</label><br>
         <input type="radio" id="useClasses" name="variant">
         <label for="useClasses">categorical classification</label><br>
-        <input type="button" value="run" id="run" onclick="run();">
+        <div class="flex-row">
+            <input type="button" value="run" id="run" onclick="runTraining();">
+            <input type="button" value="stop" id="stop" onclick="stopTraining();" disabled>
+        </div>
     </div>
 
     <div id="log"></div>
