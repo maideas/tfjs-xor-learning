@@ -112,89 +112,101 @@
     window.console.log = redirectedLog
 
     const run = () => {
-        clearLog()
+        document.getElementById("run").disabled = true
+        document.getElementById("useRMSLoss").disabled = true
+        document.getElementById("useBinary").disabled = true
+        document.getElementById("useClasses").disabled = true
 
-        const useRMSLoss = document.getElementById("useRMSLoss").checked
-        const useClasses = document.getElementById("useClasses").checked
+        setTimeout(() => {
+            clearLog()
 
-        const dataX = [[0, 0], [0, 1], [1, 0], [1, 1]]
-        const dataY = useClasses ?
-            [[1, 0], [0, 1], [0, 1], [1, 0]] :
-            [0, 1, 1, 0]
+            const useRMSLoss = document.getElementById("useRMSLoss").checked
+            const useClasses = document.getElementById("useClasses").checked
 
-        const trainX = tf.tensor2d(dataX, [dataX.length, dataX[0].length], 'float32')
-        const trainY = useClasses ?
-            tf.tensor2d(dataY, [dataY.length, dataY[0].length], 'int32') :
-            tf.tensor1d(dataY, 'int32')
+            const dataX = [[0, 0], [0, 1], [1, 0], [1, 1]]
+            const dataY = useClasses ?
+                [[1, 0], [0, 1], [0, 1], [1, 0]] :
+                [0, 1, 1, 0]
 
-        // some simple validation data ...
-        const validX = tf.clone(trainX).add(tf.randomNormal(trainX.shape, 0, 0.1))
-        const validY = tf.clone(trainY)
+            const trainX = tf.tensor2d(dataX, [dataX.length, dataX[0].length], 'float32')
+            const trainY = useClasses ?
+                tf.tensor2d(dataY, [dataY.length, dataY[0].length], 'int32') :
+                tf.tensor1d(dataY, 'int32')
 
-        const model = tf.sequential();
-        model.add(tf.layers.dense({ inputShape: [2], units: 5, useBias: true, activation: 'tanh' }))
-        model.add(tf.layers.dense({ units: 5, useBias: true, activation: 'tanh' }))
+            // some simple validation data ...
+            const validX = tf.clone(trainX).add(tf.randomNormal(trainX.shape, 0, 0.1))
+            const validY = tf.clone(trainY)
 
-        if (useClasses) {
-            model.add(tf.layers.dense({ units: 2, useBias: true, activation: 'softmax' }))
-        } else {
-            if (useRMSLoss) {
-                model.add(tf.layers.dense({ units: 1, useBias: true, activation: 'linear' }))
+            const model = tf.sequential();
+            model.add(tf.layers.dense({ inputShape: [2], units: 5, useBias: true, activation: 'tanh' }))
+            model.add(tf.layers.dense({ units: 5, useBias: true, activation: 'tanh' }))
+
+            if (useClasses) {
+                model.add(tf.layers.dense({ units: 2, useBias: true, activation: 'softmax' }))
             } else {
-                model.add(tf.layers.dense({ units: 1, useBias: true, activation: 'sigmoid' }))
+                if (useRMSLoss) {
+                    model.add(tf.layers.dense({ units: 1, useBias: true, activation: 'linear' }))
+                } else {
+                    model.add(tf.layers.dense({ units: 1, useBias: true, activation: 'sigmoid' }))
+                }
             }
-        }
 
-        model.compile({
-            optimizer: tf.train.adam(learningRate = 0.01),
-            loss: useClasses ? 'categoricalCrossentropy' :
-                (useRMSLoss ? 'meanSquaredError' : 'binaryCrossentropy'),
-            metrics: ['accuracy']
-        })
+            model.compile({
+                optimizer: tf.train.adam(learningRate = 0.01),
+                loss: useClasses ? 'categoricalCrossentropy' :
+                    (useRMSLoss ? 'meanSquaredError' : 'binaryCrossentropy'),
+                metrics: ['accuracy']
+            })
 
-        const onBatchEnd = (n, logs) => {
-            console.log('onBatchEnd', n, logs)
-        }
-
-        const onEpochEnd = (n, logs) => {
-            console.log('onEpochEnd', n, logs)
-        }
-
-        model.fit(trainX, trainY, {
-            batchSize: 4,
-            epochs: 200,
-            shuffle: true,
-            validationData: [validX, validY],
-            callbacks: { /* onBatchEnd, */ onEpochEnd }
-        }).then(info => {
-            console.log('post-fit :', info)
-
-            console.log('training data input:')
-            trainX.print()
-            console.log('training data target:')
-            trainY.print()
-            console.log('training data predicted:')
-            model.predict(trainX).print()
-
-            console.log('validation data input:')
-            validX.print()
-            console.log('validation data target:')
-            validY.print()
-            console.log('validation data predicted:')
-            model.predict(validX).print()
-
-            let trainLoss = [];
-            let validLoss = [];
-            for (let n = 0; n < info.history.loss.length; n++) {
-                trainLoss.push({ x: n, y: info.history.loss[n] })
-                validLoss.push({ x: n, y: info.history.val_loss[n] })
+            const onBatchEnd = (n, logs) => {
+                console.log('onBatchEnd', n, logs)
             }
-            tfvis.render.linechart(
-                document.getElementById('loss-plot'),
-                { values: [trainLoss, validLoss], series: ['train loss', 'validation loss'] },
-                { xLabel: 'Epochs', yLabel: 'Loss', zoomToFit: true, height: 300 }
-            );
-        })
+
+            const onEpochEnd = (n, logs) => {
+                console.log('onEpochEnd', n, logs)
+            }
+
+            model.fit(trainX, trainY, {
+                batchSize: 4,
+                epochs: 200,
+                shuffle: true,
+                validationData: [validX, validY],
+                callbacks: { /* onBatchEnd, */ onEpochEnd }
+            }).then(info => {
+                console.log('post-fit :', info)
+
+                console.log('training data input:')
+                trainX.print()
+                console.log('training data target:')
+                trainY.print()
+                console.log('training data predicted:')
+                model.predict(trainX).print()
+
+                console.log('validation data input:')
+                validX.print()
+                console.log('validation data target:')
+                validY.print()
+                console.log('validation data predicted:')
+                model.predict(validX).print()
+
+                let trainLoss = [];
+                let validLoss = [];
+                for (let n = 0; n < info.history.loss.length; n++) {
+                    trainLoss.push({ x: n, y: info.history.loss[n] })
+                    validLoss.push({ x: n, y: info.history.val_loss[n] })
+                }
+                tfvis.render.linechart(
+                    document.getElementById('loss-plot'),
+                    { values: [trainLoss, validLoss], series: ['train loss', 'validation loss'] },
+                    { xLabel: 'Epochs', yLabel: 'Loss', zoomToFit: true, height: 300 }
+                )
+
+                document.getElementById("useRMSLoss").disabled = false
+                document.getElementById("useBinary").disabled = false
+                document.getElementById("useClasses").disabled = false
+                document.getElementById("run").disabled = false
+            })
+        }, 0)
     }
 </script>
 
@@ -208,7 +220,7 @@
         <label for="useBinary">binary classification</label><br>
         <input type="radio" id="useClasses" name="variant">
         <label for="useClasses">categorical classification</label><br>
-        <input type="button" value="run" onclick="run();">
+        <input type="button" value="run" id="run" onclick="run();">
     </div>
 
     <div id="log"></div>
