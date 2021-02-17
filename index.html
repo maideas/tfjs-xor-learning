@@ -176,19 +176,21 @@
                 }
             }
 
+            const epochs = 200
+
             const onBatchEnd = (n, logs) => {
-                console.log('onBatchEnd', n, logs)
+                console.log('onBatchEnd', '[ batch', n, ']', logs)
                 manageStopTraining()
             }
 
             const onEpochEnd = (n, logs) => {
-                console.log('onEpochEnd', n, logs)
+                console.log('onEpochEnd', '[ epoch', n, 'of', epochs, ']', logs)
                 manageStopTraining()
             }
 
             model.fit(trainX, trainY, {
                 batchSize: 4,
-                epochs: 200,
+                epochs: epochs,
                 shuffle: true,
                 validationData: [validX, validY],
                 callbacks: { /* onBatchEnd, */ onEpochEnd }
